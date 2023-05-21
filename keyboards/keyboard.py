@@ -18,6 +18,6 @@ location_button = KeyboardButton("Поделиться местоположен�
 location_markup.add(location_button)
 
 
-async def create_retailers_kb(buttons: int):
+async def create_inline_kb(buttons: int):
     kb = InlineKeyboardMarkup(row_width=buttons)
     return kb

@@ -5,9 +5,8 @@ from create_bot import bot
 from aiogram.dispatcher.filters import Text
 from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
-    select_retailers_name_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, \
-    look_for_prices_in_added_retailers
-from functions import available_retailers_keyboard, users_retailers_keyboard
+    select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm
+from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard
 from asyncio import sleep
 
 
@@ -46,7 +45,7 @@ async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
         result = await add_retailer_to_user_list(callback.from_user.id, retailer_id)
         await callback.answer(result, show_alert=True)
     else:
-        users_retailers_tuple = await select_retailers_name_added_by_user(callback.from_user.id)
+        users_retailers_tuple = await select_retailers_added_by_user(callback.from_user.id)
         if len(users_retailers_tuple) == 0:
             await bot.send_message(callback.from_user.id, "Укажите хотя бы один магазин, чтобы я знал, где "
                                                           "искать")
@@ -69,7 +68,7 @@ async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
 
 
 async def my_retailers(message: types.Message):
-    users_retailers_tuple = await select_retailers_name_added_by_user(telegram_id=message.from_user.id)
+    users_retailers_tuple = await select_retailers_added_by_user(telegram_id=message.from_user.id)
     if len(users_retailers_tuple) == 0:
         await bot.send_message(message.from_user.id, text="В списке нет ни одного магазина")
         await sleep(1.5)
@@ -102,7 +101,7 @@ async def remove_retailer_from_user_list(callback: types.CallbackQuery):
         else:
             await callback.answer("Изменения сохранены", show_alert=True)
     else:
-        users_retailers_tuple = await select_retailers_name_added_by_user(telegram_id=callback.from_user.id)
+        users_retailers_tuple = await select_retailers_added_by_user(telegram_id=callback.from_user.id)
         if len(users_retailers_tuple) == 0:
             await bot.send_message(callback.from_user.id, text="В списке нет ни одного магазина")
             await sleep(1.5)
@@ -115,26 +114,47 @@ async def remove_retailer_from_user_list(callback: types.CallbackQuery):
                                                                '"Порошок стиральный Losk Color 2,7 кг"')
 
 
-# если нет магазинов в списке - не искать
-async def known_category(message: types.Message):
-    query = str(message.text).rstrip()
-    tuple_from_database = await select_primitive_algorithm(query)
-    if len(tuple_from_database) == 0:
-        await bot.send_message(message.from_user.id, text="Я пока не знаю цены на данный товар.\n\nУточните запрос в "
-                                                          "соответствии с требуемым форматом или найдите другой товар")
-    elif len(tuple_from_database) == 1:
-        product_id = tuple_from_database[0][0]
-        retailer_name_and_price = await look_for_prices_in_added_retailers(message.from_user.id, product_id)
-        response = ""
-        for el in retailer_name_and_price:
-            response += el[0] + " - " + str(el[1]) + " руб" + "\n"
-        await bot.send_message(message.from_user.id, text=response.rstrip())
+async def look_for_price(message: types.Message):
+    users_retailers_tuple = await select_retailers_added_by_user(telegram_id=message.from_user.id)
+    if len(users_retailers_tuple) == 0:
+        await bot.send_message(message.from_user.id, text="В списке нет ни одного магазина")
+        await sleep(1.5)
+        msg = "Отметьте супермаркеты, которые вы посещаете"
+        kb = await available_retailers_keyboard()
+        await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
     else:
-        await bot.send_message(message.from_user.id, text="Я знаю цены на товары из этого списка:\n\n")
+        query = str(message.text).rstrip()
+        tuple_from_database = await select_primitive_algorithm(query, message.from_user.id)
+        if len(tuple_from_database) == 0:
+            await bot.send_message(message.from_user.id, text="Я пока не знаю цены на данную категорию.\n\nПопробуйте "
+                                                              "уточнить запрос в соответствии с требуемым форматом или "
+                                                              "найти другой товар")
+        else:
+            if len(tuple_from_database) <= len(await select_retailers_added_by_user(message.from_user.id)):
+                msg = ""
+                for info in tuple_from_database:
+                    msg += f'{info[1]} - {info[2]} руб.\n'
+                msg.rstrip(" ")
+                await bot.send_message(message.from_user.id, text=msg)
+            else:
+                await bot.send_message(message.from_user.id, text="Были найдены цены на следующие товары. Если в этом "
+                                                                  "списке есть тот, который вас интересует - отправьте "
+                                                                  "его в чат, чтобы узнать цены")
+                await sleep(2)
+
+                kb, msg = await found_goods_keyboard(tuple_from_database)
+                await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
 
 
-async def echo_send(message: types.Message):
-    await bot.send_message(message.from_user.id, "Эта категория пока недоступна для поиска")
+async def look_for_concrete_good(callback: types.CallbackQuery):
+    query = str(callback.data)
+    query = query[query.find(" ") + 1:].rstrip(" ")
+    tuple_from_database = await select_primitive_algorithm(query, callback.from_user.id)
+    msg = ""
+    for info in tuple_from_database:
+        msg += f'{info[1]} - {info[2]} руб.\n'
+    msg.rstrip(" ")
+    await bot.send_message(callback.from_user.id, text=msg)
 
 
 async def bug(message: types.Message):
@@ -165,10 +185,6 @@ def message_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(remove_retailer_from_user_list, Text(startswith="remove retailer"))
     dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True))
     dp.register_message_handler(bug_report, lambda message: "шибка" in message.text)
-    # dp.register_message_handler(known_category, lambda message: "орошок" in str(message.text).split(" ")[0] or
-    # "одгузники" in str(message.text).split(" ")[0] or
-    # "ампунь" in str(message.text).split(" ")[0])
-    dp.register_message_handler(known_category, lambda message: str(message).count(" ") >= 1)
+    dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
+    dp.register_message_handler(look_for_price)
     # dp.register_message_handler(my_list, lambda message: "писки" in message.text)
-
-    dp.register_message_handler(echo_send)
