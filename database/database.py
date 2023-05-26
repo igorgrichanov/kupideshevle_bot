@@ -2,12 +2,54 @@ import aiomysql
 import asyncio
 
 
+async def add_new_product_list_query(telegram_id: int, list_name: str):
+    result = ""
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'INSERT INTO `mydb`.`user_list`(`user_telegram_id`, `name`) '
+                                  f'VALUES ({telegram_id}, \'{list_name}\');')
+            except Exception as ex:
+                print("List already exists", ex)
+                result = "Список с таким названием уже существует. Удалите его либо выберите другое название для " \
+                         "нового списка"
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
+async def user_product_list(telegram_id: int):
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'SELECT `name` FROM `mydb`.`user_list` '
+                                  f'WHERE `mydb`.`user_list`.`user_telegram_id`={telegram_id};')
+                result = await cur.fetchall()
+            except Exception as ex:
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
 async def select_all_available_retailers():
     try:
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'SELECT `id`, `name` FROM `mydb`.`retailer` ORDER BY `id`;')
@@ -28,7 +70,7 @@ async def select_primitive_algorithm(query: str, telegram_id: int):
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'SELECT `mydb`.`product`.`name`, `mydb`.`retailer`.`name`, '
@@ -63,7 +105,7 @@ async def delete_retailer_added_by_user(telegram_id, retailer_id):
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'SELECT `retailer_id` FROM `mydb`.`fav_stores` WHERE '
@@ -91,7 +133,7 @@ async def select_retailers_added_by_user(telegram_id):
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'SELECT id, name FROM `mydb`.`retailer` '
@@ -116,7 +158,7 @@ async def add_retailer_to_user_list(telegram_id, retailer_id):
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'INSERT INTO `mydb`.`fav_stores` (`user_telegram_id`, `retailer_id`) VALUES '
@@ -137,7 +179,7 @@ async def create_bug_report(report):
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'INSERT INTO `mydb`.`bug_report` (`text`) VALUES (\'{report}\');')
@@ -155,7 +197,7 @@ async def insert_new_user(user_id):
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
-        print("Connected successfully")
+
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'INSERT INTO mydb.user VALUES ({user_id});')

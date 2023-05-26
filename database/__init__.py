@@ -1,3 +1,3 @@
 from database.database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, \
-    select_all_available_retailers
+    select_all_available_retailers, user_product_list, add_new_product_list_query

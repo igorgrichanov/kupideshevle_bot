@@ -3,9 +3,10 @@ import time
 from aiogram import types, Dispatcher
 from create_bot import bot
 from aiogram.dispatcher.filters import Text
-from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
+from keyboards import kb_markup_main, location_markup, my_retailers_delete_add, add_product_to_list, add_new_product_list
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
-    select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm
+    select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, user_product_list, \
+    add_new_product_list_query
 from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard
 from asyncio import sleep
 
@@ -23,7 +24,7 @@ async def start_help(message: types.Message):
         await sleep(1)
         await bot.send_message(message.from_user.id, text='Нажмите на кнопку "Поделиться местоположением"',
                                reply_markup=location_markup)
-        await sleep(2)
+
         # await message.delete()
     except Exception as ex:
         print(ex)
@@ -61,10 +62,33 @@ async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
                                    reply_markup=kb_markup_main)
 
 
-# async def my_list(message: types.Message):
-# await bot.send_message(message.from_user.id, 'Раздел ещё находится в разработке')
+async def my_product_list(message: types.Message):
+    lists = await user_product_list(message.from_user.id)
+    if len(lists) == 0:
+        await bot.send_message(message.from_user.id, "У вас пока нет ни одного списка",
+                               reply_markup=add_new_product_list)
+    else:
+        msg = ""
+        for list_name in lists:
+            msg += f'{list_name[0]}\n'
+        msg.rstrip(" ")
+        await bot.send_message(message.from_user.id, msg, reply_markup=add_new_product_list)
 # создать новый если из бд ничего не вернулось, на кнопках вывести существующие
 # выводить кнопку после каждого высланного товара "добавить в список"
+
+
+async def insert_new_product_list(message: types.Message):
+    await bot.send_message(message.from_user.id, "Чтобы создать новый список, отправьте его название со знаком \"!\" "
+                                                 "в начале.\n\nПример: !Частое")
+
+
+async def add_new_list_by_name_handler(message: types.Message):
+    list_name = message.text.lstrip("!").lstrip(" ")
+    result = await add_new_product_list_query(message.from_user.id, list_name)
+    if result != "":
+        await bot.send_message(message.from_user.id, result)
+    else:
+        await bot.send_message(message.from_user.id, "Список успешно создан!")
 
 
 async def my_retailers(message: types.Message):
@@ -135,7 +159,7 @@ async def look_for_price(message: types.Message):
                 for info in tuple_from_database:
                     msg += f'{info[1]} - {info[2]} руб.\n'
                 msg.rstrip(" ")
-                await bot.send_message(message.from_user.id, text=msg)
+                await bot.send_message(message.from_user.id, text=msg, reply_markup=add_product_to_list)
             else:
                 await bot.send_message(message.from_user.id, text="Были найдены цены на следующие товары. Если в этом "
                                                                   "списке есть тот, который вас интересует - отправьте "
@@ -154,7 +178,7 @@ async def look_for_concrete_good(callback: types.CallbackQuery):
     for info in tuple_from_database:
         msg += f'{info[1]} - {info[2]} руб.\n'
     msg.rstrip(" ")
-    await bot.send_message(callback.from_user.id, text=msg)
+    await bot.send_message(callback.from_user.id, text=msg, reply_markup=add_product_to_list)
 
 
 async def bug(message: types.Message):
@@ -183,8 +207,10 @@ def message_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(delete_retailer_from_user_list_message,
                                        Text(equals='Удалить магазин', ignore_case=True))
     dp.register_callback_query_handler(remove_retailer_from_user_list, Text(startswith="remove retailer"))
+    dp.register_message_handler(my_product_list, Text(equals="Мои списки"))
+    dp.register_callback_query_handler(insert_new_product_list, Text(equals="create new list"))
+    dp.register_message_handler(add_new_list_by_name_handler, Text(startswith="!"))
     dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True))
     dp.register_message_handler(bug_report, lambda message: "шибка" in message.text)
     dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
     dp.register_message_handler(look_for_price)
-    # dp.register_message_handler(my_list, lambda message: "писки" in message.text)
