@@ -1,5 +1,3 @@
-import time
-
 from aiogram import types, Dispatcher
 from create_bot import bot
 from aiogram.dispatcher.filters import Text
@@ -9,6 +7,7 @@ from database import insert_new_user, create_bug_report, add_retailer_to_user_li
     add_new_product_list_query
 from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard
 from asyncio import sleep
+from aiogram.dispatcher.filters.state import State, StatesGroup
 
 
 async def locate(message: types.Message):
@@ -80,14 +79,17 @@ async def my_product_list(message: types.Message):
 # выводить кнопку после каждого высланного товара "добавить в список"
 
 
+class FSMForUserLists(StatesGroup):
+    name = State()
+
+
 async def insert_new_product_list(message: types.Message):
-    await bot.send_message(message.from_user.id, "Чтобы создать новый список, отправьте его название со знаком \"!\" "
-                                                 "в начале.\n\nПример: !Частое")
+    await FSMForUserLists.name.set()
+    await bot.send_message(message.from_user.id, "Отправьте имя нового списка")
 
 
 async def add_new_list_by_name_handler(message: types.Message):
-    list_name = message.text.lstrip("!").lstrip(" ")
-    result = await add_new_product_list_query(message.from_user.id, list_name)
+    result = await add_new_product_list_query(message.from_user.id, message.text)
     if result != "":
         await bot.send_message(message.from_user.id, result)
     else:
@@ -184,20 +186,20 @@ async def look_for_concrete_good(callback: types.CallbackQuery):
     await bot.send_message(callback.from_user.id, text=msg, reply_markup=add_product_to_list)
 
 
+class FSMBug(StatesGroup):
+    bug = State()
+
+
 async def bug(message: types.Message):
-    await bot.send_message(message.from_user.id, 'Опишите проблему, с которой столкнулись, в формате "Ошибка: '
-                                                 '[ваш текст]".')
+    await FSMBug.bug.set()
+    await bot.send_message(message.from_user.id, 'Опишите проблему, с которой столкнулись')
 
 
 async def bug_report(message: types.Message):
-    report = str(message.text).replace(":", "", 1)
-    print(report)
-    await create_bug_report(report)
+    print(message.text)
+    await create_bug_report(message.text)
     await bot.send_message(message.from_user.id, 'Спасибо, что помогаете '
                                                  'развивать чат-бот!')
-    time.sleep(1)
-    await bot.send_message(message.from_user.id, 'Введите запрос в формате:\n"Порошок стиральный Losk Color 2,7 кг"',
-                           reply_markup=kb_markup_main)
 
 
 def message_handlers(dp: Dispatcher):
@@ -211,9 +213,9 @@ def message_handlers(dp: Dispatcher):
                                        Text(equals='Удалить магазин', ignore_case=True))
     dp.register_callback_query_handler(remove_retailer_from_user_list, Text(startswith="remove retailer"))
     dp.register_message_handler(my_product_list, Text(equals="Мои списки"))
-    dp.register_callback_query_handler(insert_new_product_list, Text(equals="create new list"))
-    dp.register_message_handler(add_new_list_by_name_handler, Text(startswith="!"))
-    dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True))
-    dp.register_message_handler(bug_report, lambda message: "шибка" in message.text)
+    dp.register_callback_query_handler(insert_new_product_list, Text(equals="create new list"), state=None)
+    dp.register_message_handler(add_new_list_by_name_handler, state=FSMForUserLists.name)
+    dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True), state=None)
+    dp.register_message_handler(bug_report, state=FSMBug.bug)
     dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
     dp.register_message_handler(look_for_price)
