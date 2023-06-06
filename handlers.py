@@ -11,6 +11,13 @@ from functions import available_retailers_keyboard, users_retailers_keyboard, fo
 from asyncio import sleep
 
 
+async def locate(message: types.Message):
+    await bot.send_message(message.from_user.id, text="Давайте найдём ближайшие магазины, чтобы сравнить цены в них")
+    await sleep(1)
+    await bot.send_message(message.from_user.id, text='Нажмите на кнопку "Поделиться местоположением"',
+                           reply_markup=location_markup)
+
+
 async def start_help(message: types.Message):
     try:
         await bot.send_message(message.from_user.id, text=f'Привет, {message.from_user.first_name}! '
@@ -19,11 +26,7 @@ async def start_help(message: types.Message):
                                                           f'более 30% от стоимости товара.')
         await insert_new_user(message.from_user.id)
         await sleep(3)
-        await bot.send_message(message.from_user.id, text="Мне нужно знать ваш адрес, чтобы не рекомендовать товары, "
-                                                          "которых нет в магазинах рядом с вами")
-        await sleep(1)
-        await bot.send_message(message.from_user.id, text='Нажмите на кнопку "Поделиться местоположением"',
-                               reply_markup=location_markup)
+        await locate(message)
 
         # await message.delete()
     except Exception as ex:
@@ -201,7 +204,7 @@ def message_handlers(dp: Dispatcher):
     dp.register_message_handler(start_help, commands=['start', 'help'])
     dp.register_message_handler(search_and_add_retailers, content_types=['location'])
     dp.register_message_handler(search_and_add_retailers, Text(equals="Поделиться местоположением"))
-    dp.register_callback_query_handler(search_and_add_retailers, Text(equals="Добавить магазин"))
+    dp.register_callback_query_handler(locate, Text(equals="Добавить магазин"))
     dp.register_callback_query_handler(add_retailer_by_name_to_the_list, Text(startswith="add retailer"))
     dp.register_message_handler(my_retailers, lambda message: "ои магазины" in message.text)
     dp.register_callback_query_handler(delete_retailer_from_user_list_message,
