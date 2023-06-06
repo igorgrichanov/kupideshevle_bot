@@ -22,8 +22,9 @@ add_product_to_list_button = InlineKeyboardButton(text="Добавить в сп
 add_product_to_list.add(add_product_to_list_button)
 
 add_new_product_list = InlineKeyboardMarkup()
-add_new_product_list_button = InlineKeyboardButton(text="Создать новый список", callback_data="create new list")
-add_new_product_list.add(add_new_product_list_button)
+add_new_product_list_button = InlineKeyboardButton(text="Создать список", callback_data="create new list")
+rm_product_list_button = InlineKeyboardButton(text="Удалить список", callback_data="remove list")
+add_new_product_list.row(add_new_product_list_button, rm_product_list_button)
 
 
 async def create_inline_kb(buttons: int):
