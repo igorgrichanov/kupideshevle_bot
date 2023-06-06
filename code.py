@@ -4,7 +4,7 @@ from handlers import message_handlers
 
 
 async def on_startup(_):
-    print("Online")
+    print("Online1")
 
 
 message_handlers(dp)
