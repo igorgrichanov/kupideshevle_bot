@@ -17,15 +17,6 @@ location_markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=Tr
 location_button = KeyboardButton("Поделиться местоположением", request_location=True)
 location_markup.add(location_button)
 
-add_product_to_list = InlineKeyboardMarkup()
-add_product_to_list_button = InlineKeyboardButton(text="Добавить в список", callback_data="add to list")
-add_product_to_list.add(add_product_to_list_button)
-
-add_new_product_list = InlineKeyboardMarkup()
-add_new_product_list_button = InlineKeyboardButton(text="Создать список", callback_data="create new list")
-rm_product_list_button = InlineKeyboardButton(text="Удалить список", callback_data="remove list")
-add_new_product_list.row(add_new_product_list_button, rm_product_list_button)
-
 
 async def create_inline_kb(buttons: int):
     kb = InlineKeyboardMarkup(row_width=buttons)

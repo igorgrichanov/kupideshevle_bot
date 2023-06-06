@@ -1,4 +1,4 @@
-from database import select_all_available_retailers, select_retailers_added_by_user
+from database import select_all_available_retailers, select_retailers_added_by_user, user_product_list
 from keyboards import create_inline_kb, create_inline_button
 
 
@@ -41,3 +41,32 @@ async def found_goods_keyboard(tuple_from_database: tuple):
         i += 1
     msg.rstrip(" ")
     return kb, msg
+
+
+async def list_actions(empty: bool):
+    kb = await create_inline_kb(2)
+    add_new_product_list_button = await create_inline_button(text="Создать список", callback="create new list")
+    rm_product_list_button = await create_inline_button(text="Удалить список", callback="remove list")
+    explore_lists_button = await create_inline_button(text="Просмотреть содержимое", callback="explore lists")
+    kb.row(add_new_product_list_button, rm_product_list_button)
+    if not empty:
+        kb.add(explore_lists_button)
+    return kb
+
+
+async def available_lists(telegram_id: int):
+    kb = await create_inline_kb(5)
+    lists = await user_product_list(telegram_id)
+    for name in lists:
+        button = await create_inline_button(text=name[0], callback=f'user {telegram_id} list {name[0]}')
+        kb.insert(button)
+    return kb
+
+
+async def add_product_to_list(product_name: str):
+    kb = await create_inline_kb(1)
+    while product_name.count(" ") > 3:
+        product_name = product_name[product_name.find(" ") + 1:]
+    button = await create_inline_button(text="Добавить в список", callback=f"add {product_name}")
+    kb.insert(button)
+    return kb

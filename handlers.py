@@ -1,13 +1,15 @@
 from aiogram import types, Dispatcher
 from create_bot import bot
 from aiogram.dispatcher.filters import Text
-from keyboards import kb_markup_main, location_markup, my_retailers_delete_add, add_product_to_list, add_new_product_list
+from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, user_product_list, \
     add_new_product_list_query
-from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard
+from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard, list_actions, \
+    available_lists, add_product_to_list
 from asyncio import sleep
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.dispatcher import FSMContext
 
 
 async def locate(message: types.Message):
@@ -67,16 +69,26 @@ async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
 async def my_product_list(message: types.Message):
     lists = await user_product_list(message.from_user.id)
     if len(lists) == 0:
+        kb = await list_actions(True)
         await bot.send_message(message.from_user.id, "У вас пока нет ни одного списка",
-                               reply_markup=add_new_product_list)
+                               reply_markup=kb)
     else:
         msg = ""
+        i = 1
         for list_name in lists:
-            msg += f'{list_name[0]}\n'
+            msg += f'{i}. {list_name[0]}\n'
+            i += 1
         msg.rstrip(" ")
-        await bot.send_message(message.from_user.id, msg, reply_markup=add_new_product_list)
-# создать новый если из бд ничего не вернулось, на кнопках вывести существующие
-# выводить кнопку после каждого высланного товара "добавить в список"
+        kb = await list_actions(False)
+        await bot.send_message(message.from_user.id, msg, reply_markup=kb)
+
+
+async def explore_list(callback: types.CallbackQuery):
+    kb = await available_lists(callback.from_user.id)
+    await bot.send_message(callback.from_user.id, text="Какой список хотите просмотреть?", reply_markup=kb)
+
+
+#async def print_list_content(callback: types.CallbackQuery):
 
 
 class FSMForUserLists(StatesGroup):
@@ -88,12 +100,21 @@ async def insert_new_product_list(message: types.Message):
     await bot.send_message(message.from_user.id, "Отправьте имя нового списка")
 
 
-async def add_new_list_by_name_handler(message: types.Message):
-    result = await add_new_product_list_query(message.from_user.id, message.text)
-    if result != "":
-        await bot.send_message(message.from_user.id, result)
+async def add_new_list_by_name_handler(message: types.Message, state: FSMContext):
+    list_name = message.text
+    if list_name == "-":
+        await state.finish()
+        await bot.send_message(message.from_user.id, "Я готов работать дальше!")
+    elif list_name != "Мои списки" and list_name != "Мои магазины" and list_name != "Сообщить об ошибке":
+        await state.finish()
+        result = await add_new_product_list_query(message.from_user.id, message.text)
+        await state.finish()
+        if result != "":
+            await bot.send_message(message.from_user.id, result)
+        else:
+            await bot.send_message(message.from_user.id, "Список успешно создан!")
     else:
-        await bot.send_message(message.from_user.id, "Список успешно создан!")
+        await bot.send_message(message.from_user.id, 'Если вы передумали создавать список, отправьте знак "-"')
 
 
 async def my_retailers(message: types.Message):
@@ -148,9 +169,7 @@ async def look_for_price(message: types.Message):
     if len(users_retailers_tuple) == 0:
         await bot.send_message(message.from_user.id, text="В списке нет ни одного магазина")
         await sleep(1.5)
-        msg = "Отметьте супермаркеты, которые вы посещаете"
-        kb = await available_retailers_keyboard()
-        await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
+        await locate(message)
     else:
         query = str(message.text).rstrip()
         tuple_from_database = await select_primitive_algorithm(query, message.from_user.id)
@@ -164,7 +183,12 @@ async def look_for_price(message: types.Message):
                 for info in tuple_from_database:
                     msg += f'{info[1]} - {info[2]} руб.\n'
                 msg.rstrip(" ")
-                await bot.send_message(message.from_user.id, text=msg, reply_markup=add_product_to_list)
+                kb = await add_product_to_list(tuple_from_database[0][0])
+                if not await are_there_any_lists(message.from_user.id):
+                    await bot.send_message(message.from_user.id,
+                                           "Вы можете создать список, чтобы затем искать цены сразу "
+                                           "на несколько товаров. Попробуйте!")
+                await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
             else:
                 await bot.send_message(message.from_user.id, text="Были найдены цены на следующие товары. Если в этом "
                                                                   "списке есть тот, который вас интересует - отправьте "
@@ -183,7 +207,19 @@ async def look_for_concrete_good(callback: types.CallbackQuery):
     for info in tuple_from_database:
         msg += f'{info[1]} - {info[2]} руб.\n'
     msg.rstrip(" ")
-    await bot.send_message(callback.from_user.id, text=msg, reply_markup=add_product_to_list)
+    kb = await add_product_to_list(tuple_from_database[0][0])
+    await bot.send_message(callback.from_user.id, text=msg, reply_markup=kb)
+    if not await are_there_any_lists(callback.from_user.id):
+        await bot.send_message(callback.from_user.id, "Вы можете создать список, чтобы затем искать цены сразу "
+                                                     "на несколько товаров. Попробуйте!")
+
+
+async def are_there_any_lists(telegram_id: int):
+    lists = await user_product_list(telegram_id)
+    if len(lists) == 0:
+        return False
+    else:
+        return True
 
 
 class FSMBug(StatesGroup):
@@ -195,11 +231,19 @@ async def bug(message: types.Message):
     await bot.send_message(message.from_user.id, 'Опишите проблему, с которой столкнулись')
 
 
-async def bug_report(message: types.Message):
-    print(message.text)
-    await create_bug_report(message.text)
-    await bot.send_message(message.from_user.id, 'Спасибо, что помогаете '
-                                                 'развивать чат-бот!')
+async def bug_report(message: types.Message, state: FSMContext):
+    bug_text = message.text
+    print(bug_text)
+    if bug_text == "-":
+        await state.finish()
+        await bot.send_message(message.from_user.id, "Я готов работать дальше!")
+    elif bug_text != "Мои списки" and bug_text != "Мои магазины" and bug_text != "Сообщить об ошибке":
+        await state.finish()
+        await create_bug_report(message.text)
+        await bot.send_message(message.from_user.id, 'Спасибо, что помогаете '
+                                                     'развивать чат-бот!')
+    else:
+        await bot.send_message(message.from_user.id, 'Если вы передумали сообщать об ошибке, отправьте "-"')
 
 
 def message_handlers(dp: Dispatcher):
@@ -216,6 +260,7 @@ def message_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(insert_new_product_list, Text(equals="create new list"), state=None)
     dp.register_message_handler(add_new_list_by_name_handler, state=FSMForUserLists.name)
     dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True), state=None)
+    dp.register_callback_query_handler(explore_list, Text(equals="explore lists"))
     dp.register_message_handler(bug_report, state=FSMBug.bug)
     dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
     dp.register_message_handler(look_for_price)
