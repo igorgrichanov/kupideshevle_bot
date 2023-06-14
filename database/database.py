@@ -2,6 +2,31 @@ import aiomysql
 import asyncio
 
 
+async def add_product_to_user_list(list_id: int, product_id: int):
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'INSERT INTO `mydb`.`list_product`(`list_id`, '
+                                  f'`product_id`) VALUES ({list_id}, {product_id});')
+                result = "Товар добавлен успешно!"
+            except Exception as ex:
+                result = "Товар уже есть в этом списке"
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
+async def remove_product_from_user_list(list_id: int, product_id: int):
+    pass
+
+
 async def add_new_product_list_query(telegram_id: int, list_name: str):
     result = ""
     try:
@@ -10,12 +35,17 @@ async def add_new_product_list_query(telegram_id: int, list_name: str):
                                       loop=loop)
         async with conn.cursor() as cur:
             try:
-                await cur.execute(f'INSERT INTO `mydb`.`user_list`(`user_telegram_id`, `name`) '
-                                  f'VALUES ({telegram_id}, \'{list_name}\');')
+                await cur.execute(f'SELECT `name` FROM `mydb`.`user_list` WHERE `name`=\'{list_name}\''
+                                  f'AND `user_telegram_id`={telegram_id}')
+                already_exists = await cur.fetchall()
+                if len(already_exists) == 0:
+                    await cur.execute(f'INSERT INTO `mydb`.`user_list`(`name`, `user_telegram_id`) '
+                                      f'VALUES (\'{list_name}\', {telegram_id});')
+                else:
+                    result = "Список с таким названием уже существует. Удалите его либо выберите другое название для " \
+                             "нового списка"
             except Exception as ex:
-                print("List already exists", ex)
-                result = "Список с таким названием уже существует. Удалите его либо выберите другое название для " \
-                         "нового списка"
+                print(ex)
             await conn.commit()
         conn.close()
         return result
@@ -31,7 +61,7 @@ async def user_product_list(telegram_id: int):
                                       loop=loop)
         async with conn.cursor() as cur:
             try:
-                await cur.execute(f'SELECT `name` FROM `mydb`.`user_list` '
+                await cur.execute(f'SELECT `id`, `name` FROM `mydb`.`user_list` '
                                   f'WHERE `mydb`.`user_list`.`user_telegram_id`={telegram_id};')
                 result = await cur.fetchall()
             except Exception as ex:
@@ -64,6 +94,36 @@ async def select_all_available_retailers():
         print(ex)
 
 
+async def prices_of_known_product(product_id: int, telegram_id: int):
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'SELECT `mydb`.`product`.`name`, `mydb`.`retailer`.`name`, '
+                                  f'`mydb`.`retailer_has_product`.`price` '
+                                  f'FROM `mydb`.`product` '
+                                  f'INNER JOIN `mydb`.`retailer_has_product` '
+                                  f'ON `mydb`.`retailer_has_product`.`product_id`=`mydb`.`product`.`id`'
+                                  f'INNER JOIN `mydb`.`fav_stores` '
+                                  f'ON `mydb`.`fav_stores`.`retailer_id`=`mydb`.`retailer_has_product`.`retailer_id` '
+                                  f'AND `mydb`.`fav_stores`.`user_telegram_id`={telegram_id} '
+                                  f'INNER JOIN `mydb`.`retailer` '
+                                  f'ON `mydb`.`fav_stores`.`retailer_id`=`mydb`.`retailer`.`id`'
+                                  f'WHERE `mydb`.`product`.`id`={product_id};')
+                res = await cur.fetchall()
+            except Exception as ex:
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return res
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
 async def select_primitive_algorithm(query: str, telegram_id: int):
     res = tuple()
     try:
@@ -73,7 +133,7 @@ async def select_primitive_algorithm(query: str, telegram_id: int):
 
         async with conn.cursor() as cur:
             try:
-                await cur.execute(f'SELECT `mydb`.`product`.`name`, `mydb`.`retailer`.`name`, '
+                await cur.execute(f'SELECT `mydb`.`product`.`id`,`mydb`.`product`.`name`, `mydb`.`retailer`.`name`, '
                                   f'`mydb`.`retailer_has_product`.`price` '
                                   f'FROM `mydb`.`product`'
                                   f'INNER JOIN `mydb`.`retailer_has_product` '

@@ -4,9 +4,9 @@ from aiogram.dispatcher.filters import Text
 from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, user_product_list, \
-    add_new_product_list_query
+    add_new_product_list_query, add_product_to_user_list, prices_of_known_product
 from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard, list_actions, \
-    available_lists, add_product_to_list
+    available_lists, add_product_to_list, lists_to_add_products
 from asyncio import sleep
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
@@ -66,7 +66,7 @@ async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
                                    reply_markup=kb_markup_main)
 
 
-async def my_product_list(message: types.Message):
+async def my_product_lists(message: types.Message):
     lists = await user_product_list(message.from_user.id)
     if len(lists) == 0:
         kb = await list_actions(True)
@@ -75,8 +75,8 @@ async def my_product_list(message: types.Message):
     else:
         msg = ""
         i = 1
-        for list_name in lists:
-            msg += f'{i}. {list_name[0]}\n'
+        for lst in lists:
+            msg += f'{i}. {lst[1]}\n'
             i += 1
         msg.rstrip(" ")
         kb = await list_actions(False)
@@ -95,9 +95,10 @@ class FSMForUserLists(StatesGroup):
     name = State()
 
 
-async def insert_new_product_list(message: types.Message):
+async def insert_new_product_list(telegram_id: int):
     await FSMForUserLists.name.set()
-    await bot.send_message(message.from_user.id, "Отправьте имя нового списка")
+    await sleep(1)
+    await bot.send_message(telegram_id, "Отправьте имя нового списка")
 
 
 async def add_new_list_by_name_handler(message: types.Message, state: FSMContext):
@@ -106,15 +107,20 @@ async def add_new_list_by_name_handler(message: types.Message, state: FSMContext
         await state.finish()
         await bot.send_message(message.from_user.id, "Я готов работать дальше!")
     elif list_name != "Мои списки" and list_name != "Мои магазины" and list_name != "Сообщить об ошибке":
-        await state.finish()
         result = await add_new_product_list_query(message.from_user.id, message.text)
         await state.finish()
         if result != "":
             await bot.send_message(message.from_user.id, result)
         else:
-            await bot.send_message(message.from_user.id, "Список успешно создан!")
+            await bot.send_message(message.from_user.id, "Список успешно создан!\n\nВы можете пролистать выше и "
+                                                         "добавить товары в созданный список")
     else:
         await bot.send_message(message.from_user.id, 'Если вы передумали создавать список, отправьте знак "-"')
+
+
+async def delete_list_by_name_handler(message: types.Message):
+    pass
+    #написать
 
 
 async def my_retailers(message: types.Message):
@@ -181,7 +187,7 @@ async def look_for_price(message: types.Message):
             if len(tuple_from_database) <= len(await select_retailers_added_by_user(message.from_user.id)):
                 msg = ""
                 for info in tuple_from_database:
-                    msg += f'{info[1]} - {info[2]} руб.\n'
+                    msg += f'{info[2]} - {info[3]} руб.\n'
                 msg.rstrip(" ")
                 kb = await add_product_to_list(tuple_from_database[0][0])
                 if not await are_there_any_lists(message.from_user.id):
@@ -200,14 +206,14 @@ async def look_for_price(message: types.Message):
 
 
 async def look_for_concrete_good(callback: types.CallbackQuery):
-    query = str(callback.data)
-    query = query[query.find(" ") + 1:].rstrip(" ")
-    tuple_from_database = await select_primitive_algorithm(query, callback.from_user.id)
+    product_id = int(callback.data.split(" ")[1])
+    tuple_from_database = await prices_of_known_product(product_id, callback.from_user.id)
     msg = ""
     for info in tuple_from_database:
         msg += f'{info[1]} - {info[2]} руб.\n'
     msg.rstrip(" ")
-    kb = await add_product_to_list(tuple_from_database[0][0])
+    kb = await add_product_to_list(product_id)
+
     await bot.send_message(callback.from_user.id, text=msg, reply_markup=kb)
     if not await are_there_any_lists(callback.from_user.id):
         await bot.send_message(callback.from_user.id, "Вы можете создать список, чтобы затем искать цены сразу "
@@ -220,6 +226,37 @@ async def are_there_any_lists(telegram_id: int):
         return False
     else:
         return True
+
+
+class FSMForProductAdding(StatesGroup):
+    choosingList = State()
+
+
+async def add_product_to_list_by_name(callback: types.CallbackQuery):
+    await FSMForProductAdding.choosingList.set()
+    product_id = int(callback.data.split(" ")[1])
+    user_lists = await user_product_list(callback.from_user.id)
+    if len(user_lists) != 0:
+        kb = await lists_to_add_products(callback.from_user.id, product_id)
+        await bot.send_message(callback.from_user.id, text="В какой список добавим продукт?", reply_markup=kb)
+    else:
+        await bot.send_message(callback.from_user.id, text="У вас пока нет ни одного списка. Самое время создать "
+                                                           "первый!")
+        await insert_new_product_list(callback.from_user.id)
+
+
+async def add_product_to_this_list(callback: types.CallbackQuery, state: FSMContext):
+    list_id, product_id = int(callback.data.split()[1]), int(callback.data.split()[2])
+    result = await add_product_to_user_list(list_id, product_id)
+    await callback.answer(result, show_alert=True)
+    await state.finish()
+    # а если хочет добавить в несколько списков?
+
+
+async def dont_want_anymore_to_add_product_to_list(message: types.Message, state: FSMContext):
+    await bot.send_message(message.from_user.id, text="Если вы передумали добавлять товар в список, продублируйте "
+                                                      "только что отправленное сообщение")
+    await state.finish()
 
 
 class FSMBug(StatesGroup):
@@ -256,11 +293,15 @@ def message_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(delete_retailer_from_user_list_message,
                                        Text(equals='Удалить магазин', ignore_case=True))
     dp.register_callback_query_handler(remove_retailer_from_user_list, Text(startswith="remove retailer"))
-    dp.register_message_handler(my_product_list, Text(equals="Мои списки"))
+    dp.register_message_handler(my_product_lists, Text(equals="Мои списки"))
     dp.register_callback_query_handler(insert_new_product_list, Text(equals="create new list"), state=None)
     dp.register_message_handler(add_new_list_by_name_handler, state=FSMForUserLists.name)
     dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True), state=None)
     dp.register_callback_query_handler(explore_list, Text(equals="explore lists"))
     dp.register_message_handler(bug_report, state=FSMBug.bug)
     dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
+    dp.register_callback_query_handler(add_product_to_list_by_name, Text(startswith="addp"))
+    dp.register_callback_query_handler(add_product_to_this_list, Text(startswith="addptol"),
+                                       state=FSMForProductAdding.choosingList)
+    dp.register_message_handler(dont_want_anymore_to_add_product_to_list, state=FSMForProductAdding.choosingList)
     dp.register_message_handler(look_for_price)
