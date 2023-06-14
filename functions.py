@@ -1,4 +1,4 @@
-from database import select_all_available_retailers, select_retailers_added_by_user, user_product_list
+from database import select_all_available_retailers, select_retailers_added_by_user, user_product_lists
 from keyboards import create_inline_kb, create_inline_button
 
 
@@ -40,39 +40,50 @@ async def found_goods_keyboard(tuple_from_database: tuple):
     return kb, msg
 
 
-async def list_actions(empty: bool):
+async def user_product_lists_keyboard(telegram_id: int):
+    flag = False
+    lists = await user_product_lists(telegram_id)
     kb = await create_inline_kb(2)
-    add_new_product_list_button = await create_inline_button(text="Создать список", callback="create new list")
-    rm_product_list_button = await create_inline_button(text="Удалить список", callback="remove list")
-    explore_lists_button = await create_inline_button(text="Просмотреть содержимое", callback="explore lists")
-    kb.add(add_new_product_list_button)
-    if not empty:
-        kb.insert(rm_product_list_button)
-        kb.add(explore_lists_button)
+    create_new_list_button = await create_inline_button(text="Создать новый список", callback="create new list")
+    kb.add(create_new_list_button)
+    if len(lists) > 0:
+        for lst in lists:
+            button = await create_inline_button(text=lst[1], callback=f'lst {lst[0]} {lst[1]}')
+            if not flag:
+                kb.add(button)
+                flag = True
+            else:
+                kb.insert(button)
+    return kb, flag
+
+
+async def concrete_list_actions():
+    kb = await create_inline_kb(2)
+    remove_good_button = await create_inline_button(text="Удалить товар", callback="remove good")
+    remove_list_button = await create_inline_button(text="Удалить список", callback="remove list")
+    rename_list_button = await create_inline_button(text="Переименовать список", callback="rename list")
+    kb.row(remove_good_button, remove_list_button)
+    kb.add(rename_list_button)
     return kb
 
 
 async def available_lists(telegram_id: int):
     kb = await create_inline_kb(5)
-    lists = await user_product_list(telegram_id)
+    lists = await user_product_lists(telegram_id)
     for lst in lists:
-        button = await create_inline_button(text=lst[1], callback=f'l {lst[0]}')
+        button = await create_inline_button(text=lst[1], callback=f'lst {lst[0]} {lst[1]}')
         kb.insert(button)
     return kb
 
 
-async def add_product_to_list(product_id: int):
-    kb = await create_inline_kb(1)
-    button = await create_inline_button(text="Добавить в список", callback=f"addp {product_id}")
-    kb.insert(button)
-    return kb
-
-
-async def lists_to_add_products(telegram_id: int, product_id: int):
+async def add_product_to_list(telegram_id: int, product_id: int):
     kb = await create_inline_kb(3)
-    lists = await user_product_list(telegram_id)
-    for lst in lists:
-        button = await create_inline_button(text=lst[1], callback=f'addptol {lst[0]} {product_id}')
+    lists = await user_product_lists(telegram_id)
+    if len(lists) > 0:
+        for lst in lists:
+            button = await create_inline_button(text=f'В {lst[1]}', callback=f'addptol {lst[0]} {product_id}')
+            kb.insert(button)
+    else:
+        button = await create_inline_button(text="Создать новый список", callback="create new list")
         kb.insert(button)
     return kb
-#сразу на кнопке писать названия списков

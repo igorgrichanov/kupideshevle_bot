@@ -2,6 +2,29 @@ import aiomysql
 import asyncio
 
 
+async def product_list_content(list_id: int):
+    result = ""
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'SELECT `mydb`.`product`.`name` FROM `mydb`.`product` '
+                                  f'INNER JOIN `mydb`.`list_product` ON '
+                                  f'`mydb`.`list_product`.`product_id`=`mydb`.`product`.`id` AND '
+                                  f'`mydb`.`list_product`.`list_id`={list_id};')
+                result = await cur.fetchall()
+            except Exception as ex:
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
 async def add_product_to_user_list(list_id: int, product_id: int):
     try:
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
@@ -14,6 +37,27 @@ async def add_product_to_user_list(list_id: int, product_id: int):
                 result = "Товар добавлен успешно!"
             except Exception as ex:
                 result = "Товар уже есть в этом списке"
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
+async def rename_product_list(list_id: int, new_name: str):
+    result = ""
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'UPDATE `mydb`.`user_list` SET name=\'{new_name}\' WHERE '
+                                  f'`mydb`.`user_list`.`id`={list_id};')
+                result = "Изменения сохранены!"
+            except Exception as ex:
                 print(ex)
             await conn.commit()
         conn.close()
@@ -54,7 +98,7 @@ async def add_new_product_list_query(telegram_id: int, list_name: str):
         print(ex)
 
 
-async def user_product_list(telegram_id: int):
+async def user_product_lists(telegram_id: int):
     try:
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
