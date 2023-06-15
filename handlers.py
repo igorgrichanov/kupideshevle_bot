@@ -5,9 +5,9 @@ from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, user_product_lists, \
     add_new_product_list_query, add_product_to_user_list, prices_of_known_product, product_list_content, \
-    rename_product_list_query
+    rename_product_list_query, remove_product_from_list_query
 from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard, \
-    add_product_to_list, concrete_list_actions, user_product_lists_keyboard
+    add_product_to_list, concrete_list_actions, user_product_lists_keyboard, remove_product_from_list_keyboard
 from asyncio import sleep
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
@@ -106,17 +106,17 @@ async def add_new_list_by_name_handler(message: types.Message, state: FSMContext
 
 async def print_list_content(callback: types.CallbackQuery):
     list_id, list_name = int(callback.data.split(" ")[1]), callback.data.split(" ")[2]
-    list_content = await product_list_content(list_id)
+    list_content = await product_list_content(list_id=list_id)
     if len(list_content) != 0:
         msg = f"Содержимое списка \"{list_name}\"\n\n"
         i = 1
         for product in list_content:
-            msg += f'{i}. {product[0]}\n'
+            msg += f'{i}. {product[1]}\n'
             i += 1
         msg.rstrip()
-        kb = await concrete_list_actions(False, list_name)
+        kb = await concrete_list_actions(False, list_id, list_name)
     else:
-        kb = await concrete_list_actions(True, list_name)
+        kb = await concrete_list_actions(True, list_id, list_name)
         msg = 'Список пуст. Чтобы добавить товар в список, введите запрос в формате:\n"Порошок стиральный ' \
               'Losk Color 2,7 кг"'
     await bot.send_message(callback.from_user.id, text=msg, reply_markup=kb)
@@ -141,6 +141,20 @@ async def rename_product_list(message: types.Message, state: FSMContext):
     result = await rename_product_list_query(old_list_name, new_list_name, message.from_user.id)
     await bot.send_message(message.from_user.id, result)
     await state.finish()
+
+
+async def remove_product_from_list_handler(callback: types.CallbackQuery):
+    list_id = int(callback.data.split()[3])
+    kb = await remove_product_from_list_keyboard(list_id)
+    await bot.send_message(callback.from_user.id, "Нажмите на кнопку с номером товара, который требуется удалить",
+                           reply_markup=kb)
+
+
+async def remove_product_from_list(callback: types.CallbackQuery):
+    product_id = int(callback.data.split()[2])
+    list_id = int(callback.data.split()[3])
+    result = await remove_product_from_list_query(list_id, product_id)
+    await callback.answer(result, show_alert=True)
 
 
 async def delete_list_by_name_handler(message: types.Message):
@@ -301,6 +315,8 @@ def message_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(print_list_content, Text(startswith="lst"))
     dp.register_callback_query_handler(rename_product_list_handler, Text(startswith="rename list"))
     dp.register_message_handler(rename_product_list, state=FSMForRenameList.newName)
+    dp.register_callback_query_handler(remove_product_from_list_handler, Text(startswith="rm g"))
+    dp.register_callback_query_handler(remove_product_from_list, Text(startswith="rm prod"))
     dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
     dp.register_callback_query_handler(add_product_to_this_list, Text(startswith="addptol"))
     dp.register_message_handler(look_for_price)

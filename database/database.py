@@ -2,15 +2,14 @@ import aiomysql
 import asyncio
 
 
-async def product_list_content(list_id: int):
-    result = ""
+async def product_list_content(list_id):
     try:
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
                                       loop=loop)
         async with conn.cursor() as cur:
             try:
-                await cur.execute(f'SELECT `mydb`.`product`.`name` FROM `mydb`.`product` '
+                await cur.execute(f'SELECT `mydb`.`product`.`id`, `mydb`.`product`.`name` FROM `mydb`.`product` '
                                   f'INNER JOIN `mydb`.`list_product` ON '
                                   f'`mydb`.`list_product`.`product_id`=`mydb`.`product`.`id` AND '
                                   f'`mydb`.`list_product`.`list_id`={list_id};')
@@ -69,8 +68,34 @@ async def rename_product_list_query(old_name: str, new_name: str, telegram_id: i
         print(ex)
 
 
-async def remove_product_from_user_list(list_id: int, product_id: int):
-    pass
+async def remove_product_from_list_query(list_id: int, product_id: int):
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'SELECT * FROM `mydb`.`list_product` '
+                                  f'WHERE `mydb`.`list_product`.`list_id`={list_id} '
+                                  f'AND `mydb`.`list_product`.`product_id`={product_id};')
+                res = await cur.fetchall()
+                if len(res) == 0:
+                    result = "Товар уже был удалён прежде"
+                else:
+                    await cur.execute(f'DELETE FROM `mydb`.`list_product` WHERE '
+                                      f'`mydb`.`list_product`.`list_id`={list_id} '
+                                      f'AND `mydb`.`list_product`.`product_id`={product_id};')
+                    result = "Изменения сохранены!"
+            except Exception as ex:
+                result = "Произошла ошибка! Пожалуйста, сообщите о ней, нажав на кнопку на нижней клавиатуре, " \
+                         "мы всё починим"
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
 
 
 async def add_new_product_list_query(telegram_id: int, list_name: str):
