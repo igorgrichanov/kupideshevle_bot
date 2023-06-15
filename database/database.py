@@ -46,8 +46,7 @@ async def add_product_to_user_list(list_id: int, product_id: int):
         print(ex)
 
 
-async def rename_product_list(list_id: int, new_name: str):
-    result = ""
+async def rename_product_list_query(old_name: str, new_name: str, telegram_id: int):
     try:
         conn = await aiomysql.connect(host='127.0.0.1', port=3306,
                                       user='root', password='root', db='mydb',
@@ -55,9 +54,12 @@ async def rename_product_list(list_id: int, new_name: str):
         async with conn.cursor() as cur:
             try:
                 await cur.execute(f'UPDATE `mydb`.`user_list` SET name=\'{new_name}\' WHERE '
-                                  f'`mydb`.`user_list`.`id`={list_id};')
+                                  f'`mydb`.`user_list`.`name`=\'{old_name}\' AND '
+                                  f'`mydb`.`user_list`.`user_telegram_id`={telegram_id};')
                 result = "Изменения сохранены!"
             except Exception as ex:
+                result = "Произошла ошибка! Пожалуйста, отправьте отзыв, нажав на кнопку на нижней клавиатуре, " \
+                         "мы всё починим"
                 print(ex)
             await conn.commit()
         conn.close()

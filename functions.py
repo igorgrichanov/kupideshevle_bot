@@ -57,22 +57,17 @@ async def user_product_lists_keyboard(telegram_id: int):
     return kb, flag
 
 
-async def concrete_list_actions():
+async def concrete_list_actions(empty: bool, list_name: str):
     kb = await create_inline_kb(2)
+    remove_list_button = await create_inline_button(text="Удалить список",
+                                                    callback=f"remove list {list_name}")
+    rename_list_button = await create_inline_button(text="Переименовать список",
+                                                    callback=f"rename list {list_name}")
     remove_good_button = await create_inline_button(text="Удалить товар", callback="remove good")
-    remove_list_button = await create_inline_button(text="Удалить список", callback="remove list")
-    rename_list_button = await create_inline_button(text="Переименовать список", callback="rename list")
-    kb.row(remove_good_button, remove_list_button)
     kb.add(rename_list_button)
-    return kb
-
-
-async def available_lists(telegram_id: int):
-    kb = await create_inline_kb(5)
-    lists = await user_product_lists(telegram_id)
-    for lst in lists:
-        button = await create_inline_button(text=lst[1], callback=f'lst {lst[0]} {lst[1]}')
-        kb.insert(button)
+    kb.add(remove_list_button)
+    if not empty:
+        kb.insert(remove_good_button)
     return kb
 
 

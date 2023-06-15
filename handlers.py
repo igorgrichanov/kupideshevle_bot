@@ -4,9 +4,10 @@ from aiogram.dispatcher.filters import Text
 from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, select_primitive_algorithm, user_product_lists, \
-    add_new_product_list_query, add_product_to_user_list, prices_of_known_product, product_list_content
+    add_new_product_list_query, add_product_to_user_list, prices_of_known_product, product_list_content, \
+    rename_product_list_query
 from functions import available_retailers_keyboard, users_retailers_keyboard, found_goods_keyboard, \
-    available_lists, add_product_to_list, concrete_list_actions, user_product_lists_keyboard
+    add_product_to_list, concrete_list_actions, user_product_lists_keyboard
 from asyncio import sleep
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
@@ -76,19 +77,6 @@ async def my_product_lists(message: types.Message):
                                                      "создать ваш первый список продуктов", reply_markup=kb)
 
 
-async def print_list_content(callback: types.CallbackQuery):
-    list_id, list_name = int(callback.data.split(" ")[1]), callback.data.split(" ")[2]
-    list_content = await product_list_content(list_id)
-    msg = f"Содержимое списка \"{list_name}\"\n\n"
-    i = 1
-    for product in list_content:
-        msg += f'{i}. {product[0]}\n'
-        i += 1
-    msg.rstrip()
-    kb = await concrete_list_actions()
-    await bot.send_message(callback.from_user.id, text=msg, reply_markup=kb)
-
-
 class FSMForUserLists(StatesGroup):
     name = State()
 
@@ -116,8 +104,43 @@ async def add_new_list_by_name_handler(message: types.Message, state: FSMContext
         await bot.send_message(message.from_user.id, 'Если вы передумали создавать список, отправьте знак "-"')
 
 
-async def rename_product_list(callback: types.CallbackQuery):
-    pass
+async def print_list_content(callback: types.CallbackQuery):
+    list_id, list_name = int(callback.data.split(" ")[1]), callback.data.split(" ")[2]
+    list_content = await product_list_content(list_id)
+    if len(list_content) != 0:
+        msg = f"Содержимое списка \"{list_name}\"\n\n"
+        i = 1
+        for product in list_content:
+            msg += f'{i}. {product[0]}\n'
+            i += 1
+        msg.rstrip()
+        kb = await concrete_list_actions(False, list_name)
+    else:
+        kb = await concrete_list_actions(True, list_name)
+        msg = 'Список пуст. Чтобы добавить товар в список, введите запрос в формате:\n"Порошок стиральный ' \
+              'Losk Color 2,7 кг"'
+    await bot.send_message(callback.from_user.id, text=msg, reply_markup=kb)
+
+
+class FSMForRenameList(StatesGroup):
+    newName = State()
+
+
+async def rename_product_list_handler(callback: types.CallbackQuery):
+    await FSMForRenameList.newName.set()
+    list_name_lst = callback.data.split()[2:]
+    list_name = " ".join(list_name_lst)
+    await sleep(1)
+    await bot.send_message(callback.from_user.id, text=f"Отправьте новое имя списка {list_name} в формате:\n\n"
+                                                       f"Старое имя - новое имя")
+
+
+async def rename_product_list(message: types.Message, state: FSMContext):
+    new_list_name = str(message.text[message.text.find("-") + 1:]).lstrip()
+    old_list_name = str(message.text[:message.text.find("-")]).rstrip()
+    result = await rename_product_list_query(old_list_name, new_list_name, message.from_user.id)
+    await bot.send_message(message.from_user.id, result)
+    await state.finish()
 
 
 async def delete_list_by_name_handler(message: types.Message):
@@ -274,8 +297,10 @@ def message_handlers(dp: Dispatcher):
     dp.register_callback_query_handler(insert_new_product_list, Text(equals="create new list"), state=None)
     dp.register_message_handler(add_new_list_by_name_handler, state=FSMForUserLists.name)
     dp.register_message_handler(bug, Text(equals='Сообщить об ошибке', ignore_case=True), state=None)
-    dp.register_callback_query_handler(print_list_content, Text(startswith="lst"))
     dp.register_message_handler(bug_report, state=FSMBug.bug)
+    dp.register_callback_query_handler(print_list_content, Text(startswith="lst"))
+    dp.register_callback_query_handler(rename_product_list_handler, Text(startswith="rename list"))
+    dp.register_message_handler(rename_product_list, state=FSMForRenameList.newName)
     dp.register_callback_query_handler(look_for_concrete_good, Text(startswith="lf"))
     dp.register_callback_query_handler(add_product_to_this_list, Text(startswith="addptol"))
     dp.register_message_handler(look_for_price)
