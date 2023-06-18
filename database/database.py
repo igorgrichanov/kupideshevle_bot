@@ -14,11 +14,17 @@ async def product_list_content(list_id):
                                   f'`mydb`.`list_product`.`product_id`=`mydb`.`product`.`id` AND '
                                   f'`mydb`.`list_product`.`list_id`={list_id};')
                 result = await cur.fetchall()
+                await cur.execute(f'SELECT * FROM `mydb`.`user_list` WHERE id={list_id}')
+                list_existence = await cur.fetchall()
+                if len(list_existence) == 0:
+                    exists = False
+                else:
+                    exists = True
             except Exception as ex:
                 print(ex)
             await conn.commit()
         conn.close()
-        return result
+        return result, exists
     except Exception as ex:
         print("Connection failed")
         print(ex)
@@ -115,6 +121,30 @@ async def add_new_product_list_query(telegram_id: int, list_name: str):
                 else:
                     result = "Список с таким названием уже существует. Удалите его либо выберите другое название для " \
                              "нового списка"
+            except Exception as ex:
+                print(ex)
+            await conn.commit()
+        conn.close()
+        return result
+    except Exception as ex:
+        print("Connection failed")
+        print(ex)
+
+
+async def delete_list_by_name_query(list_id: int):
+    try:
+        conn = await aiomysql.connect(host='127.0.0.1', port=3306,
+                                      user='root', password='root', db='mydb',
+                                      loop=loop)
+        async with conn.cursor() as cur:
+            try:
+                await cur.execute(f'SELECT * FROM `mydb`.`user_list` WHERE id={list_id}')
+                res = await cur.fetchall()
+                if len(res) != 0:
+                    await cur.execute(f'DELETE FROM `mydb`.`user_list` WHERE id={list_id};')
+                    result = "Изменения сохранены"
+                else:
+                    result = "Вы уже удалили этот список прежде"
             except Exception as ex:
                 print(ex)
             await conn.commit()

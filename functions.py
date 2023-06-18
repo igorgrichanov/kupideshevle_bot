@@ -1,96 +1,48 @@
-from database import select_all_available_retailers, select_retailers_added_by_user, user_product_lists, \
-    product_list_content
-from keyboards import create_inline_kb, create_inline_button
+from database import user_product_lists, select_primitive_algorithm, prices_of_known_product
+from keyboards import add_product_to_list, found_goods_keyboard
 
 
-async def available_retailers_keyboard():
-    retailers = await select_all_available_retailers()
-    kb = await create_inline_kb(3)
-    for retailer in retailers:
-        button = await create_inline_button(text=retailer[1], callback=f'add retailer {retailer[0]}')
-        kb.insert(button)
-    ready_button = await create_inline_button(text="Готово", callback="add retailer -1")
-    kb.add(ready_button)
-    return kb
-
-
-async def users_retailers_keyboard(telegram_id):
-    retailers = await select_retailers_added_by_user(telegram_id)
-    kb = await create_inline_kb(3)
-    for retailer in retailers:
-        button = await create_inline_button(text=retailer[1], callback=f'remove retailer {retailer[0]}')
-        kb.insert(button)
-    ready_button = await create_inline_button(text="Готово", callback="remove retailer -1")
-    kb.add(ready_button)
-    return kb
-
-
-async def found_goods_keyboard(tuple_from_database: tuple):
-    distinct_res = dict()
-    msg = ""
-    i = 1
-    kb = await create_inline_kb(5)
-    for info in tuple_from_database:
-        distinct_res[info[0]] = distinct_res.get(info[0], 0) + 1
-        if distinct_res[info[0]] == 1:
-            msg += f'{i}. {info[1]}\n'
-            button = await create_inline_button(text=f'{i}', callback=f'lf {info[0]}')
-            kb.insert(button)
-            i += 1
-    msg.rstrip(" ")
-    return kb, msg
-
-
-async def user_product_lists_keyboard(telegram_id: int):
-    flag = False
+async def are_there_any_lists(telegram_id: int):
     lists = await user_product_lists(telegram_id)
-    kb = await create_inline_kb(2)
-    create_new_list_button = await create_inline_button(text="Создать новый список", callback="create new list")
-    kb.add(create_new_list_button)
-    if len(lists) > 0:
-        for lst in lists:
-            button = await create_inline_button(text=lst[1], callback=f'lst {lst[0]} {lst[1]}')
-            if not flag:
-                kb.add(button)
-                flag = True
-            else:
-                kb.insert(button)
-    return kb, flag
-
-
-async def concrete_list_actions(empty: bool, list_id: int, list_name: str):
-    kb = await create_inline_kb(2)
-    remove_list_button = await create_inline_button(text="Удалить список",
-                                                    callback=f"remove list {list_id}")
-    rename_list_button = await create_inline_button(text="Переименовать список",
-                                                    callback=f"rename list {list_name}")
-    remove_good_button = await create_inline_button(text=f"Удалить товар", callback=f"rm g from {list_id}")
-    kb.add(rename_list_button)
-    kb.add(remove_list_button)
-    if not empty:
-        kb.insert(remove_good_button)
-    return kb
-
-
-async def add_product_to_list(telegram_id: int, product_id: int):
-    kb = await create_inline_kb(3)
-    lists = await user_product_lists(telegram_id)
-    if len(lists) > 0:
-        for lst in lists:
-            button = await create_inline_button(text=f'В {lst[1]}', callback=f'addptol {lst[0]} {product_id}')
-            kb.insert(button)
+    if len(lists) == 0:
+        return False
     else:
-        button = await create_inline_button(text="Создать новый список", callback="create new list")
-        kb.insert(button)
-    return kb
+        return True
 
 
-async def remove_product_from_list_keyboard(list_id: int):
-    kb = await create_inline_kb(5)
-    products = await product_list_content(list_id)
-    i = 1
-    for prod in products:
-        button = await create_inline_button(text=f'{i}', callback=f'rm prod {prod[0]} {list_id}')
-        kb.insert(button)
-        i += 1
-    return kb
+async def look_for_price(query: str, telegram_id: int, retailers_total: int):
+    tuple_from_database = await select_primitive_algorithm(query, telegram_id)
+    if len(tuple_from_database) == 0:
+        msg = "Я пока не знаю цены на данную категорию.\n\nПопробуйте уточнить запрос в соответствии с требуемым " \
+              "форматом или найти другой товар"
+        return msg, 0, ""
+    else:
+        if len(tuple_from_database) <= retailers_total:
+            msg = ""
+            for info in tuple_from_database:
+                msg += f'{info[2]} - {info[3]} руб.\n'
+            msg += "\nДобавим товар в список?"
+            kb = await add_product_to_list(telegram_id, tuple_from_database[0][0])
+            if not await are_there_any_lists(telegram_id):
+                msg2 = "Вы можете создать список, чтобы затем искать цены сразу на несколько товаров. Попробуйте!"
+                return msg, kb, msg2
+            else:
+                msg2 = "\nДобавим товар в список?"
+                return msg, kb, msg2
+        else:
+            kb, msg = await found_goods_keyboard(tuple_from_database)
+            return msg, kb, ""
+
+
+async def look_for_concrete_good(product_id: int, telegram_id: int):
+    tuple_from_database = await prices_of_known_product(product_id, telegram_id)
+    msg = f"<b>{tuple_from_database[0][0]}</b>\n\n"
+    for info in tuple_from_database:
+        msg += f'{info[1]} - {info[2]} руб.\n'
+    msg += "\nДобавим товар в список?"
+    kb = await add_product_to_list(telegram_id, product_id)
+    if not await are_there_any_lists(telegram_id):
+        msg2 = "Вы можете создать список, чтобы затем искать цены сразу на несколько товаров. Попробуйте!"
+        return msg, kb, msg2
+    else:
+        return msg, kb, ""
