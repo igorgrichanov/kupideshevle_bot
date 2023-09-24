@@ -27,8 +27,7 @@ async def look_for_price(query: str, telegram_id: int, retailers_total: int):
                 msg2 = "Вы можете создать список, чтобы затем искать цены сразу на несколько товаров. Попробуйте!"
                 return msg, kb, msg2
             else:
-                msg2 = "\nДобавим товар в список?"
-                return msg, kb, msg2
+                return msg, kb, ""
         else:
             kb, msg = await found_goods_keyboard(tuple_from_database)
             return msg, kb, ""
@@ -46,3 +45,4 @@ async def look_for_concrete_good(product_id: int, telegram_id: int):
         return msg, kb, msg2
     else:
         return msg, kb, ""
+

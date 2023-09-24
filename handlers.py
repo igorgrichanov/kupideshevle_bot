@@ -1,3 +1,4 @@
+import logging
 from aiogram import types, Dispatcher
 from create_bot import bot
 from aiogram.dispatcher.filters import Text
@@ -28,13 +29,16 @@ async def start_help(message: types.Message):
                                                           f'Я сравниваю цены на товары ваших любимых производителей. '
                                                           f'Со мной можно сэкономить <b>более 30%</b> от стоимости '
                                                           f'товара.', parse_mode=types.ParseMode.HTML)
-        await insert_new_user(message.from_user.id)
+        err = await insert_new_user(message.from_user.id)
+        if err == 0:
+            bot.send_message(582576913, text=f'New user https://t.me/{message.from_user.username} '
+                                             f'registered in the system')
         await sleep(3)
         await locate(message)
 
         # await message.delete()
     except Exception as ex:
-        print(ex)
+        logging.error(ex, exc_info=True)
         await message.reply("Что-то пошло не так...")
 
 
@@ -237,7 +241,7 @@ async def look_for_price_handler(message: types.Message):
         else:
             await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
         if msg2 != "":
-            await bot.send_message(message.from_user.id, text=msg2)
+            await bot.send_message(message.from_user.id, text=msg2, reply_markup=kb)
 
 
 async def look_for_concrete_good_handler(callback: types.CallbackQuery):
@@ -279,7 +283,6 @@ async def bug(message: types.Message):
 
 async def bug_report(message: types.Message, state: FSMContext):
     bug_text = message.text
-    print(bug_text)
     if bug_text == "-":
         await state.finish()
         await bot.send_message(message.from_user.id, "Я готов работать дальше!")
