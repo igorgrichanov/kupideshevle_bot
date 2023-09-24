@@ -93,7 +93,7 @@ async def remove_product_from_list_keyboard(list_id: int):
     kb = await create_inline_kb(5)
     products = await product_list_content(list_id)
     i = 1
-    for prod in products:
+    for prod in products[0]:
         button = await create_inline_button(text=f'{i}', callback=f'rm prod {prod[0]} {list_id}')
         kb.insert(button)
         i += 1
