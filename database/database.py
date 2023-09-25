@@ -181,13 +181,19 @@ async def add_retailer_to_user_list(telegram_id, retailer_id):
     return result
 
 
-async def create_bug_report(report):
+async def create_bug_report(report: str):
     query = f'INSERT INTO `bug_report` (`text`) VALUES (\'{report}\');'
     await connect(query)
 
 
-async def insert_new_user(user_id):
+async def insert_new_user(user_id: int):
     query = f'INSERT INTO `user` VALUES ({user_id});'
+    result = await connect(query)
+    return result
+
+
+async def is_user_registered(user_id: int):
+    query = f'SELECT * FROM `user` WHERE id={user_id}'
     result = await connect(query)
     return result
 
