@@ -193,7 +193,7 @@ async def insert_new_user(user_id: int):
 
 
 async def is_user_registered(user_id: int):
-    query = f'SELECT * FROM `user` WHERE id={user_id}'
+    query = f'SELECT * FROM `user` WHERE `telegram_id`={user_id}'
     result = await connect(query)
     return result
 

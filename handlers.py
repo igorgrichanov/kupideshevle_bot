@@ -240,7 +240,12 @@ async def look_for_price_handler(message: types.Message):
         if kb == 0:
             await bot.send_message(message.from_user.id, text=msg)
         else:
-            await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
+            if len(msg) > 4000:
+                idx_to_split = msg[3999:4090].find('.') + 3999
+                await bot.send_message(message.from_user.id, text=msg[:idx_to_split], reply_markup=kb)
+                await bot.send_message(message.from_user.id, text=msg[idx_to_split:], reply_markup=kb)
+            else:
+                await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
         if msg2 != "":
             await bot.send_message(message.from_user.id, text=msg2, reply_markup=kb)
 
