@@ -53,16 +53,16 @@ async def search_and_add_retailers(message: types.Message):
 
 async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
     retailer_id = int(callback.data.split()[2])
+    registered = await is_user_registered(callback.from_user.id)
+    if len(registered) == 0:
+        err = await insert_new_user(callback.from_user.id)
+        if err == 0:
+            await bot.send_message(582576913, text=f'New user https://t.me/{callback.from_user.username} '
+                                                   f'registered in the system')
     if retailer_id > 0:
         result = await add_retailer_to_user_list(callback.from_user.id, retailer_id)
         await callback.answer(result, show_alert=True)
     else:
-        registered = await is_user_registered(callback.from_user.id)
-        if len(registered) == 0:
-            err = await insert_new_user(callback.from_user.id)
-            if err == 0:
-                await bot.send_message(582576913, text=f'New user https://t.me/{callback.from_user.username} '
-                                                       f'registered in the system')
         users_retailers_tuple = await select_retailers_added_by_user(callback.from_user.id)
         if len(users_retailers_tuple) == 0:
             await bot.send_message(callback.from_user.id, "Укажите хотя бы один магазин, чтобы я знал, где "
