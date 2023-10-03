@@ -1,11 +1,15 @@
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+import configparser
 
+
+config = configparser.ConfigParser()
+config.read("secrets.ini")
 
 storage = MemoryStorage()
 
 
-API_TOKEN = "5230145407:AAE2UixUInuiOObYZf6SH76ZrxpYlflwCrw"
+token = config["Server"]["API_TOKEN"][1:-1]
 
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=token)
 dp = Dispatcher(bot, storage=storage)
