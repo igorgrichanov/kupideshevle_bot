@@ -1,17 +1,20 @@
 import aiomysql
 import asyncio
-import config
+import configparser
 import logging
 
 logging.basicConfig(level=logging.INFO, filename="database_log.log", filemode="w",
                     format="%(asctime)s %(levelname)s %(message)s")
+config = configparser.ConfigParser()
+config.read("secrets.ini")
 
 
 async def connect(query: str):
     result = 0
     try:
-        conn = await aiomysql.connect(host=config.host_db_s,
-                                      user=config.user_db_s, password=config.password_db_beget, db=config.name_db_s,
+        conn = await aiomysql.connect(host=config["Server"]["host_db_s"][1:-1], port=int(config["Server"]["port_db_s"]),
+                                      user=config["Server"]["user_db_s"][1:-1], password=config["Server"]["password_db_s"][1:-1],
+                                      db=config["Server"]["name_db_s"][1:-1],
                                       loop=loop)
         async with conn.cursor() as cur:
             try:

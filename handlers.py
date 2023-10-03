@@ -241,7 +241,7 @@ async def look_for_price_handler(message: types.Message):
             await bot.send_message(message.from_user.id, text=msg)
         else:
             if len(msg) > 4000:
-                idx_to_split = msg[3999:4090].find('.') + 3999
+                idx_to_split = msg[3999:4090].find('.') + 3999 - 2
                 await bot.send_message(message.from_user.id, text=msg[:idx_to_split], reply_markup=kb)
                 await bot.send_message(message.from_user.id, text=msg[idx_to_split:], reply_markup=kb)
             else:

@@ -1,2 +1,6 @@
 venv
 __pycache__
+database_log.log
+database/__pycache__
+keyboards/__pycache__
+.idea
