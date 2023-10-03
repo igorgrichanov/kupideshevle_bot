@@ -8,7 +8,7 @@ from keyboards import available_retailers_keyboard, users_retailers_keyboard, co
 from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, add_new_product_list_query, \
     add_product_to_user_list, product_list_content, rename_product_list_query, \
-    remove_product_from_list_query, delete_list_by_name_query
+    remove_product_from_list_query, delete_list_by_name_query, is_user_registered
 from functions import look_for_price, look_for_concrete_good
 from asyncio import sleep
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -31,7 +31,7 @@ async def start_help(message: types.Message):
                                                           f'товара.', parse_mode=types.ParseMode.HTML)
         err = await insert_new_user(message.from_user.id)
         if err == 0:
-            bot.send_message(582576913, text=f'New user https://t.me/{message.from_user.username} '
+            await bot.send_message(582576913, text=f'New user https://t.me/{message.from_user.username} '
                                              f'registered in the system')
         await sleep(3)
         await locate(message)
@@ -53,6 +53,12 @@ async def search_and_add_retailers(message: types.Message):
 
 async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
     retailer_id = int(callback.data.split()[2])
+    registered = await is_user_registered(callback.from_user.id)
+    if len(registered) == 0:
+        err = await insert_new_user(callback.from_user.id)
+        if err == 0:
+            await bot.send_message(582576913, text=f'New user https://t.me/{callback.from_user.username} '
+                                                   f'registered in the system')
     if retailer_id > 0:
         result = await add_retailer_to_user_list(callback.from_user.id, retailer_id)
         await callback.answer(result, show_alert=True)
@@ -64,11 +70,6 @@ async def add_retailer_by_name_to_the_list(callback: types.CallbackQuery):
         else:
             await bot.send_message(callback.from_user.id, "Отлично! Теперь я готов искать цены на ваши любимые "
                                                           "товары!")
-            await sleep(1)
-            await bot.send_message(callback.from_user.id, "Цены во всех магазинах доступны только на эти категории "
-                                                          "товаров:\n1. Стиральные порошки\n2. Шампуни\n"
-                                                          "3. Подгузники\n\nМожете найти и другие товары, "
-                                                          "но цены на них пока доступны не во всех магазинах")
             await sleep(1.5)
             await bot.send_message(callback.from_user.id,
                                    'Отправьте название товара, который хотите найти.\nНапример, <i>Шампунь Schauma</i>'
@@ -239,7 +240,12 @@ async def look_for_price_handler(message: types.Message):
         if kb == 0:
             await bot.send_message(message.from_user.id, text=msg)
         else:
-            await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
+            if len(msg) > 4000:
+                idx_to_split = msg[3999:4090].find('.') + 3999 - 2
+                await bot.send_message(message.from_user.id, text=msg[:idx_to_split], reply_markup=kb)
+                await bot.send_message(message.from_user.id, text=msg[idx_to_split:], reply_markup=kb)
+            else:
+                await bot.send_message(message.from_user.id, text=msg, reply_markup=kb)
         if msg2 != "":
             await bot.send_message(message.from_user.id, text=msg2, reply_markup=kb)
 

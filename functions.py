@@ -45,4 +45,3 @@ async def look_for_concrete_good(product_id: int, telegram_id: int):
         return msg, kb, msg2
     else:
         return msg, kb, ""
-

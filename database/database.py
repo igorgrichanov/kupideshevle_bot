@@ -1,17 +1,20 @@
 import aiomysql
 import asyncio
-import config
+import configparser
 import logging
 
 logging.basicConfig(level=logging.INFO, filename="database_log.log", filemode="w",
                     format="%(asctime)s %(levelname)s %(message)s")
+config = configparser.ConfigParser()
+config.read("secrets.ini")
 
 
 async def connect(query: str):
     result = 0
     try:
-        conn = await aiomysql.connect(host=config.host_db_s,
-                                      user=config.user_db_s, password=config.password_db_beget, db=config.name_db_s,
+        conn = await aiomysql.connect(host=config["Server"]["host_db_s"][1:-1], port=int(config["Server"]["port_db_s"]),
+                                      user=config["Server"]["user_db_s"][1:-1], password=config["Server"]["password_db_s"][1:-1],
+                                      db=config["Server"]["name_db_s"][1:-1],
                                       loop=loop)
         async with conn.cursor() as cur:
             try:
@@ -181,13 +184,19 @@ async def add_retailer_to_user_list(telegram_id, retailer_id):
     return result
 
 
-async def create_bug_report(report):
+async def create_bug_report(report: str):
     query = f'INSERT INTO `bug_report` (`text`) VALUES (\'{report}\');'
     await connect(query)
 
 
-async def insert_new_user(user_id):
+async def insert_new_user(user_id: int):
     query = f'INSERT INTO `user` VALUES ({user_id});'
+    result = await connect(query)
+    return result
+
+
+async def is_user_registered(user_id: int):
+    query = f'SELECT * FROM `user` WHERE `telegram_id`={user_id}'
     result = await connect(query)
     return result
 
