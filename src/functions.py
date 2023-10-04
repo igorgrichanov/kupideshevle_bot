@@ -1,5 +1,5 @@
-from database import user_product_lists, select_primitive_algorithm, prices_of_known_product
-from keyboards import add_product_to_list, found_goods_keyboard
+from src.database import user_product_lists, select_primitive_algorithm, prices_of_known_product
+from src.keyboards import add_product_to_list, found_goods_keyboard
 
 
 async def are_there_any_lists(telegram_id: int):

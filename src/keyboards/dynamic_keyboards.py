@@ -1,6 +1,6 @@
-from database import select_all_available_retailers, select_retailers_added_by_user, user_product_lists, \
+from src.database import select_all_available_retailers, select_retailers_added_by_user, user_product_lists, \
     product_list_content
-from keyboards import create_inline_kb, create_inline_button
+from src.keyboards import create_inline_kb, create_inline_button
 
 
 async def available_retailers_keyboard():

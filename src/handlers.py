@@ -1,15 +1,15 @@
 import logging
 from aiogram import types, Dispatcher
-from create_bot import bot
+from src.create_bot import bot
 from aiogram.dispatcher.filters import Text
-from keyboards import kb_markup_main, location_markup, my_retailers_delete_add
-from keyboards import available_retailers_keyboard, users_retailers_keyboard, concrete_list_actions, \
+from src.keyboards import kb_markup_main, location_markup, my_retailers_delete_add
+from src.keyboards import available_retailers_keyboard, users_retailers_keyboard, concrete_list_actions, \
     user_product_lists_keyboard, remove_product_from_list_keyboard
-from database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
+from src.database import insert_new_user, create_bug_report, add_retailer_to_user_list, \
     select_retailers_added_by_user, delete_retailer_added_by_user, add_new_product_list_query, \
     add_product_to_user_list, product_list_content, rename_product_list_query, \
     remove_product_from_list_query, delete_list_by_name_query, is_user_registered
-from functions import look_for_price, look_for_concrete_good
+from src.functions import look_for_price, look_for_concrete_good
 from asyncio import sleep
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher import FSMContext
