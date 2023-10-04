@@ -28,6 +28,10 @@ https://t.me/priceComparatorBot
 
 Используйте `pip install -r requirements.txt`, чтобы установить все зависимости для запуска проекта.
 
+В случае возникновения конфликтов установите зависимости вручную:
+`pip install aiogram==2.14.3`
+`pip install aiomysql`
+
 ## Документация
 
 Запустите бота, используя команду `python3 start.py`.
