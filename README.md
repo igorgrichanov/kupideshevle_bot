@@ -1,15 +1,33 @@
-# kupideshevle_bot
-Telegram bot for FMCG prices search and compare. Save up to 30% on groceries!
+# Чат-бот Telegram "Купи дешевле"
+
+https://t.me/priceComparatorBot
+
+Чат-бот для поиска выгодных цен на товары из супермаркетов. Сэкономьте до 30%, проверив цены заранее!
 
 ![image](https://github.com/igorgrichanov/kupideshevle_bot/assets/87312919/8e78c7ba-2587-4c7c-a079-1f184e65f018)
 
-Try it now: https://t.me/priceComparatorBot
+## Возможности
 
+- [x] **Выбор магазинов**: Просматривайте цены на товары только в тех магазинах, которые вам интересны
+- [x] **Поиск товаров**: Введите наименование товара с указанием производителя и характеристик (вес/объем, жирность и др.), чтобы получить список актуальных цен в избранных магазинах
+- [x] **Автодополнение**: Введите часть запроса, чтобы увидеть товар от разных производителей или с разными характеристиками
+![image](https://github.com/igorgrichanov/kupideshevle_bot/assets/87312919/02668558-e511-40aa-906e-7a32a73632ab)
+- [x] **Пользовательские списки**: Объединяйте товары, которые ищете регулярно
+![image](https://github.com/igorgrichanov/kupideshevle_bot/assets/87312919/b164e3fe-45b1-4143-b1b1-5045b6b1a7fb)
+- [x] **Поиск цен на все товары из списка сразу**
 
+## Зависимости
 
-What user can do:
-- Add and remove retailer from favourite list
-- Look for product prices in favourite stores
-- Create product lists to look for prices faster
+Чат-бот написан с использованием библиотеки aiogram v2.14.3. Используется база данных под управлением MySQL, работа с СУБД осуществляется с использованием библиотеки [aiomysql](https://pypi.org/project/aiomysql/).
 
-Try it now: https://t.me/priceComparatorBot
+Используйте pip install -r requirements.txt, чтобы установить все зависимости для запуска проекта.
+
+## Документация
+
+Запустите бота, используя команду python3 start.py.
+
+Все ошибки, возникающие в ходе работы, фиксируются в database_log.log.
+
+## Поддержка
+
+По любым вопросам, связанным с проектом, не стесняйтесь писать мне в [Telegram](https://t.me/grrichanov). Буду рад обратной связи!
